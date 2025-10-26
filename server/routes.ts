@@ -70,7 +70,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!response.ok) {
         const errorData = await response.text();
         console.error("Yoco API Error:", errorData);
-        res.status(response.status).json({ error: "Failed to create checkout" });
+        
+        let errorMessage = "Failed to create checkout";
+        try {
+          const errorJson = JSON.parse(errorData);
+          if (errorJson.description) {
+            if (errorJson.description.includes("HTTP protocol")) {
+              errorMessage = "Development mode: Please publish your app to enable payments. Yoco requires HTTPS.";
+            } else {
+              errorMessage = errorJson.description;
+            }
+          }
+        } catch (e) {
+          // If error is not JSON, use default message
+        }
+        
+        res.status(response.status).json({ error: errorMessage });
         return;
       }
 

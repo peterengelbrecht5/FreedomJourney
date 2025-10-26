@@ -30,9 +30,27 @@ export default function PaymentPage() {
       }
     },
     onError: (error: any) => {
+      console.error("Checkout error:", error);
+      
+      let errorMessage = "Failed to initialize payment. Please try again.";
+      
+      if (error.message) {
+        const match = error.message.match(/\d+: ({.*})/);
+        if (match) {
+          try {
+            const errorData = JSON.parse(match[1]);
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            errorMessage = error.message;
+          }
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Payment Error",
-        description: error.message || "Failed to initialize payment. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
