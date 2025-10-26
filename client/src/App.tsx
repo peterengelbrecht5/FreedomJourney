@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -16,14 +16,14 @@ function Router() {
   const [, setLocation] = useLocation();
   const [contactData, setContactData] = useState<InsertContact | null>(null);
 
-  const handleSignup = (data: InsertContact) => {
+  const handleSignup = useCallback((data: InsertContact) => {
     setContactData(data);
     setLocation("/congratulations");
-  };
+  }, [setLocation]);
 
-  const handleRedirect = () => {
+  const handleRedirect = useCallback(() => {
     setLocation("/payment");
-  };
+  }, [setLocation]);
 
   return (
     <Switch>
