@@ -1,6 +1,8 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertContactSchema, type InsertContact } from "@shared/schema";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -11,6 +13,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import { Shield, Lock, Zap } from "lucide-react";
 import heroImage from "@assets/generated_images/Financial_freedom_workspace_hero_7bd7d04f.png";
 
@@ -19,6 +22,8 @@ interface LandingPageProps {
 }
 
 export default function LandingPage({ onSubmit }: LandingPageProps) {
+  const { toast } = useToast();
+  
   const form = useForm<InsertContact>({
     resolver: zodResolver(insertContactSchema),
     defaultValues: {
@@ -28,9 +33,25 @@ export default function LandingPage({ onSubmit }: LandingPageProps) {
     },
   });
 
+  const createContactMutation = useMutation({
+    mutationFn: async (data: InsertContact) => {
+      const response = await apiRequest("POST", "/api/contacts", data);
+      return await response.json();
+    },
+    onSuccess: (_, variables) => {
+      onSubmit(variables);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit form. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSubmit = (data: InsertContact) => {
-    console.log("Form submitted:", data);
-    onSubmit(data);
+    createContactMutation.mutate(data);
   };
 
   return (
@@ -67,6 +88,7 @@ export default function LandingPage({ onSubmit }: LandingPageProps) {
                         placeholder="John Smith"
                         className="h-14 text-lg"
                         data-testid="input-name"
+                        disabled={createContactMutation.isPending}
                       />
                     </FormControl>
                     <FormMessage />
@@ -89,6 +111,7 @@ export default function LandingPage({ onSubmit }: LandingPageProps) {
                         placeholder="john@example.com"
                         className="h-14 text-lg"
                         data-testid="input-email"
+                        disabled={createContactMutation.isPending}
                       />
                     </FormControl>
                     <FormMessage />
@@ -111,6 +134,7 @@ export default function LandingPage({ onSubmit }: LandingPageProps) {
                         placeholder="+27 12 345 6789"
                         className="h-14 text-lg"
                         data-testid="input-phone"
+                        disabled={createContactMutation.isPending}
                       />
                     </FormControl>
                     <FormMessage />
@@ -122,8 +146,9 @@ export default function LandingPage({ onSubmit }: LandingPageProps) {
                 type="submit"
                 className="w-full h-14 text-lg font-semibold"
                 data-testid="button-submit"
+                disabled={createContactMutation.isPending}
               >
-                Start Your Journey
+                {createContactMutation.isPending ? "Submitting..." : "Start Your Journey"}
               </Button>
             </form>
           </Form>
