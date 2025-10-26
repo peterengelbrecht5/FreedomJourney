@@ -1,19 +1,57 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditCard, Lock, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PaymentPage() {
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [cardholderName, setCardholderName] = useState("");
+  const [amount, setAmount] = useState("100.00");
+  const { toast } = useToast();
+
+  const createCheckoutMutation = useMutation({
+    mutationFn: async (amountInRands: number) => {
+      const amountInCents = Math.round(amountInRands * 100);
+      const response = await apiRequest("POST", "/api/yoco/create-checkout", {
+        amount: amountInCents,
+        currency: "ZAR",
+        metadata: {
+          source: "financial-freedom-landing",
+        },
+      });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Payment Error",
+        description: error.message || "Failed to initialize payment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Payment submitted:", { cardNumber, expiryDate, cvv, cardholderName });
+    const amountValue = parseFloat(amount);
+    
+    if (isNaN(amountValue) || amountValue < 2) {
+      toast({
+        title: "Invalid Amount",
+        description: "Minimum payment amount is R2.00",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createCheckoutMutation.mutate(amountValue);
   };
 
   return (
@@ -41,73 +79,34 @@ export default function PaymentPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <Label htmlFor="cardholderName" className="text-lg font-medium mb-2 block">
-                Cardholder Name
+              <Label htmlFor="amount" className="text-lg font-medium mb-2 block">
+                Payment Amount (ZAR)
               </Label>
-              <Input
-                id="cardholderName"
-                value={cardholderName}
-                onChange={(e) => setCardholderName(e.target.value)}
-                placeholder="John Smith"
-                className="h-14 text-lg"
-                data-testid="input-cardholder-name"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="cardNumber" className="text-lg font-medium mb-2 block">
-                Card Number
-              </Label>
-              <Input
-                id="cardNumber"
-                value={cardNumber}
-                onChange={(e) => setCardNumber(e.target.value)}
-                placeholder="1234 5678 9012 3456"
-                className="h-14 text-lg"
-                maxLength={19}
-                data-testid="input-card-number"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="expiryDate" className="text-lg font-medium mb-2 block">
-                  Expiry Date
-                </Label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg text-muted-foreground">R</span>
                 <Input
-                  id="expiryDate"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                  placeholder="MM/YY"
-                  className="h-14 text-lg"
-                  maxLength={5}
-                  data-testid="input-expiry"
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  min="2"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="100.00"
+                  className="h-14 text-lg pl-10"
+                  data-testid="input-amount"
+                  disabled={createCheckoutMutation.isPending}
                 />
               </div>
-
-              <div>
-                <Label htmlFor="cvv" className="text-lg font-medium mb-2 block">
-                  CVV
-                </Label>
-                <Input
-                  id="cvv"
-                  value={cvv}
-                  onChange={(e) => setCvv(e.target.value)}
-                  placeholder="123"
-                  className="h-14 text-lg"
-                  maxLength={4}
-                  type="password"
-                  data-testid="input-cvv"
-                />
-              </div>
+              <p className="mt-2 text-sm text-muted-foreground">Minimum: R2.00</p>
             </div>
 
             <Button
               type="submit"
               className="w-full h-14 text-lg font-semibold mt-8"
-              data-testid="button-complete-payment"
+              data-testid="button-proceed-payment"
+              disabled={createCheckoutMutation.isPending}
             >
-              Complete Payment
+              {createCheckoutMutation.isPending ? "Processing..." : "Proceed to Secure Payment"}
             </Button>
           </form>
 
@@ -117,7 +116,7 @@ export default function PaymentPage() {
           </div>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Your payment information is encrypted and secure. We never store your card details.
+            You will be redirected to Yoco's secure payment page to complete your transaction. All payment information is encrypted and secure.
           </p>
         </Card>
       </div>

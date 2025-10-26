@@ -3,6 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertContactSchema } from "@shared/schema";
 
+const YOCO_SECRET_KEY = process.env.YOCO_SECRET_KEY;
+const YOCO_API_URL = "https://payments.yoco.com/api";
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/contacts", async (req, res) => {
     try {
@@ -28,6 +31,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(contact);
     } catch (error) {
       res.status(500).json({ error: "Failed to retrieve contact" });
+    }
+  });
+
+  app.post("/api/yoco/create-checkout", async (req, res) => {
+    try {
+      if (!YOCO_SECRET_KEY) {
+        console.error("YOCO_SECRET_KEY is not configured");
+        res.status(500).json({ error: "Payment gateway is not configured" });
+        return;
+      }
+
+      const { amount, currency = "ZAR", metadata } = req.body;
+
+      if (!amount || amount < 200) {
+        res.status(400).json({ error: "Amount must be at least R2.00 (200 cents)" });
+        return;
+      }
+
+      const checkoutData = {
+        amount,
+        currency,
+        successUrl: `${req.protocol}://${req.get("host")}/payment/success`,
+        cancelUrl: `${req.protocol}://${req.get("host")}/payment`,
+        failureUrl: `${req.protocol}://${req.get("host")}/payment/failure`,
+        metadata: metadata || {},
+      };
+
+      const response = await fetch(`${YOCO_API_URL}/checkouts`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${YOCO_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(checkoutData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error("Yoco API Error:", errorData);
+        res.status(response.status).json({ error: "Failed to create checkout" });
+        return;
+      }
+
+      const checkout = await response.json();
+      res.json(checkout);
+    } catch (error: any) {
+      console.error("Checkout creation error:", error);
+      res.status(500).json({ error: "Failed to create checkout" });
     }
   });
 

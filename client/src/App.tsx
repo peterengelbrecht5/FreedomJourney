@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import LandingPage from "@/pages/LandingPage";
 import CongratulationsPage from "@/pages/CongratulationsPage";
 import PaymentPage from "@/pages/PaymentPage";
+import PaymentSuccess from "@/pages/PaymentSuccess";
+import PaymentFailure from "@/pages/PaymentFailure";
 import NotFound from "@/pages/not-found";
 import type { InsertContact } from "@shared/schema";
 
@@ -28,6 +30,8 @@ function Router() {
       <Route path="/" component={() => <LandingPage onSubmit={handleSignup} />} />
       <Route path="/congratulations" component={() => <CongratulationsPage onRedirect={handleRedirect} />} />
       <Route path="/payment" component={PaymentPage} />
+      <Route path="/payment/success" component={PaymentSuccess} />
+      <Route path="/payment/failure" component={PaymentFailure} />
       <Route component={NotFound} />
     </Switch>
   );
